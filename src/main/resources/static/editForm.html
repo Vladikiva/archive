@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление кассетами</title>
+    <style>
+        .form-container {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<h1>Каталог кассет</h1>
+
+<!-- Кнопка для открытия формы добавления -->
+<button onclick="openAddForm()">Добавить кассету</button>
+
+<!-- Форма добавления кассеты -->
+<div id="addForm" class="form-container">
+    <h2>Добавить новую кассету</h2>
+    <form id="addMovieForm">
+        <label for="addMedia">Метка кассеты:</label>
+        <input type="text" id="addMedia" name="media"><br>
+
+        <label for="addMediaType">Тип кассеты:</label>
+        <input type="text" id="addMediaType" name="mediaType"><br>
+
+        <label for="addOriginalTitle">Название:</label>
+        <input type="text" id="addOriginalTitle" name="originalTitle"><br>
+
+        <label for="addDirector">Режиссер:</label>
+        <input type="text" id="addDirector" name="director"><br>
+
+        <label for="addYear">Год:</label>
+        <input type="text" id="addYear" name="year"><br>
+
+        <label for="addDescription">Описание:</label>
+        <textarea id="addDescription" name="description"></textarea><br>
+
+        <button type="button" onclick="submitAddForm()">Добавить</button>
+        <button type="button" onclick="closeAddForm()">Отмена</button>
+    </form>
+</div>
+
+<!-- Форма редактирования кассеты -->
+<div id="editForm" class="form-container">
+    <h2>Редактировать кассету</h2>
+    <form id="editMovieForm">
+        <input type="hidden" id="editId" name="id">
+        <label for="editMedia">Метка кассеты:</label>
+        <input type="text" id="editMedia" name="media"><br>
+
+        <label for="editMediaType">Тип кассеты:</label>
+        <input type="text" id="editMediaType" name="mediaType"><br>
+
+        <label for="editOriginalTitle">Название:</label>
+        <input type="text" id="editOriginalTitle" name="originalTitle"><br>
+
+        <label for="editDirector">Режиссер:</label>
+        <input type="text" id="editDirector" name="director"><br>
+
+        <label for="editYear">Год:</label>
+        <input type="text" id="editYear" name="year"><br>
+
+        <label for="editDescription">Описание:</label>
+        <textarea id="editDescription" name="description"></textarea><br>
+
+        <button type="button" onclick="saveEdit()">Сохранить</button>
+        <button type="button" onclick="closeEditForm()">Отмена</button>
+    </form>
+</div>
+
+<!-- Список кассет -->
+<ul id="resultsList"></ul>
+
+<script>
+    let searchResults = []; // Хранение данных о кассетах
+
+    // Функция для отображения списка кассет
+    function displayResults(results) {
+        const resultsList = document.getElementById('resultsList');
+        resultsList.innerHTML = ''; // Очистка списка
+
+        results.forEach(result => {
+            const li = document.createElement('li');
+            li.id = "card-" + result.id;
+            const media = result.media || 'Метка кассеты не указана';
+            const mediatype = result.mediaType || 'Тип кассеты не указан';
+            const originaltitle = result.originalTitle || 'Нет названия';
+            const director = result.director || 'Режиссер не указан';
+            const description = result.description || 'Описание отсутствует';
+            const year = result.year || 'Год не указан';
+
+            li.innerHTML = `
+                    <strong>Метка:</strong> ${media}<br>
+                    <strong>Тип:</strong> ${mediatype}<br>
+                    <strong>Название:</strong> ${originaltitle}<br>
+                    <strong>Режиссер:</strong> ${director}<br>
+                    <strong>Год:</strong> ${year}<br>
+                    <strong>Описание:</strong> ${description}<br>
+                    <button onclick="openEditForm('${result.id}')">Редактировать</button>
+                `;
+            resultsList.appendChild(li);
+        });
+    }
+
+    // Функция для открытия формы добавления
+    function openAddForm() {
+        document.getElementById('addForm').style.display = 'block';
+    }
+
+    // Функция для закрытия формы добавления
+    function closeAddForm() {
+        document.getElementById('addForm').style.display = 'none';
+    }
+
+    // Функция для отправки данных о новой кассете
+    async function submitAddForm() {
+        const media = document.getElementById('addMedia').value;
+        const mediaType = document.getElementById('addMediaType').value;
+        const originalTitle = document.getElementById('addOriginalTitle').value;
+        const director = document.getElementById('addDirector').value;
+        const year = document.getElementById('addYear').value;
+        const description = document.getElementById('addDescription').value;
+
+        const newData = {
+            media,
+            mediaType,
+            originalTitle,
+            director,
+            year,
+            description
+        };
+
+        try {
+            const response = await fetch('/api/archive', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Ошибка при добавлении записи');
+            }
+
+            closeAddForm();
+            fetchData(); // Обновляем список кассет
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Произошла ошибка при добавлении записи');
+        }
+    }
+
+    // Функция для открытия формы редактирования
+    function openEditForm(id) {
+        const result = searchResults.find(r => r.id.toString() === id);
+        if (result) {
+            document.getElementById('editId').value = result.id;
+            document.getElementById('editMedia').value = result.media || '';
+            document.getElementById('editMediaType').value = result.mediaType || '';
+            document.getElementById('editOriginalTitle').value = result.originalTitle || '';
+            document.getElementById('editDirector').value = result.director || '';
+            document.getElementById('editYear').value = result.year || '';
+            document.getElementById('editDescription').value = result.description || '';
+            document.getElementById('editForm').style.display = 'block';
+        } else {
+            console.error('Запись с id', id, 'не найдена');
+        }
+    }
+
+    // Функция для закрытия формы редактирования
+    function closeEditForm() {
+        document.getElementById('editForm').style.display = 'none';
+    }
+
+    // Функция для сохранения изменений
+    async function saveEdit() {
+        const id = document.getElementById('editId').value;
+        const media = document.getElementById('editMedia').value;
+        const mediaType = document.getElementById('editMediaType').value;
+        const originalTitle = document.getElementById('editOriginalTitle').value;
+        const director = document.getElementById('editDirector').value;
+        const year = document.getElementById('editYear').value;
+        const description = document.getElementById('editDescription').value;
+
+        const updatedData = {
+            id,
+            media,
+            mediaType,
+            originalTitle,
+            director,
+            year,
+            description
+        };
+
+        try {
+            const response = await fetch(`/api/archive/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updatedData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Ошибка при обновлении записи');
+            }
+
+            closeEditForm();
+            fetchData(); // Обновляем список кассет
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Произошла ошибка при обновлении записи');
+        }
+    }
+
+    // Функция для загрузки данных с сервера
+    async function fetchData() {
+        try {
+            const response = await fetch('/api/archive');
+            if (!response.ok) {
+                throw new Error('Ошибка при загрузке данных');
+            }
+            const data = await response.json();
+            searchResults = data;
+            displayResults(data);
+        } catch (error) {
+            console.error('Ошибка:', error);
+            document.getElementById('resultsList').innerHTML = '<li class="error">Произошла ошибка при загрузке данных.</li>';
+        }
+    }
+
+    // Загружаем данные при загрузке страницы
+    fetchData();
+</script>
+</body>
+</html>

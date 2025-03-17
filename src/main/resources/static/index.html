@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Архив ГТРК "Калининград"</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        #searchInput {
+            padding: 5px;
+            margin-right: 10px;
+        }
+        #results {
+            list-style-type: none;
+            padding: 0;
+        }
+        #results li {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .error {
+            color: red;
+        }
+        .form-container {
+            display: none;
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+        }
+        .form-container label {
+            display: block;
+            margin-top: 10px;
+        }
+        .form-container input, .form-container textarea {
+            width: 100%;
+            padding: 5px;
+            margin-top: 5px;
+        }
+        .form-container textarea {
+            height: 100px;
+        }
+        .form-container button {
+            margin-top: 10px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+<h1>Архив ГТРК "Калининград"</h1>
+<input type="text" id="searchInput" placeholder="Введите ключевое слово">
+<button onclick="performSearch()">Искать</button>
+<button onclick="openAddForm()">Добавить</button>
+<ul id="results"></ul>
+
+<!-- Форма добавления/редактирования -->
+<div id="editForm" class="form-container">
+    <h2 id="formTitle">Редактирование записи</h2>
+    <input type="hidden" id="editId">
+    <label for="editMedia">Метка:</label>
+    <input type="text" id="editMedia">
+    <label for="editMediaType">Тип:</label>
+    <input type="text" id="editMediaType">
+    <label for="editOriginalTitle">Название:</label>
+    <input type="text" id="editOriginalTitle">
+    <label for="editDirector">Режиссер:</label>
+    <input type="text" id="editDirector">
+    <label for="editYear">Год:</label>
+    <input type="text" id="editYear">
+    <label for="editDescription">Описание:</label>
+    <textarea id="editDescription"></textarea>
+    <button onclick="saveEntry()">Сохранить</button>
+    <button onclick="closeForm()">Отмена</button>
+</div>
+
+<script>
+    let searchResults = [];
+    let isEditing = false;
+    let previousScrollPosition = 0;
+
+    async function performSearch() {
+        const keyword = document.getElementById('searchInput').value;
+        const resultsList = document.getElementById('results');
+        resultsList.innerHTML = '';
+
+        if (!keyword) {
+            resultsList.innerHTML = '<li class="error">Введите ключевое слово для поиска</li>';
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/archive/search?keyword=${encodeURIComponent(keyword)}`);
+            if (!response.ok) throw new Error('Ошибка при выполнении запроса');
+            searchResults = await response.json();
+
+            if (searchResults.length === 0) {
+                resultsList.innerHTML = '<li>Ничего не найдено</li>';
+                return;
+            }
+
+            searchResults.forEach(result => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                        <strong>Метка:</strong> ${result.media || 'Не указана'}<br>
+                        <strong>Тип:</strong> ${result.mediaType || 'Не указан'}<br>
+                        <strong>Название:</strong> ${result.originalTitle || 'Не указано'}<br>
+                        <strong>Режиссер:</strong> ${result.director || 'Не указан'}<br>
+                        <strong>Год:</strong> ${result.year || 'Не указан'}<br>
+                        <strong>Описание:</strong> ${result.description || 'Отсутствует'}<br>
+                        <button onclick="openEditForm('${result.id}')">Редактировать</button>
+                    `;
+                resultsList.appendChild(li);
+            });
+        } catch (error) {
+            console.error('Ошибка:', error);
+            resultsList.innerHTML = '<li class="error">Произошла ошибка при поиске</li>';
+        }
+    }
+
+    function openEditForm(id) {
+        previousScrollPosition = window.scrollY;
+        const result = searchResults.find(r => r.id.toString() === id);
+        if (result) {
+            document.getElementById('formTitle').textContent = 'Редактирование записи';
+            document.getElementById('editId').value = result.id;
+            document.getElementById('editMedia').value = result.media || '';
+            document.getElementById('editMediaType').value = result.mediaType || '';
+            document.getElementById('editOriginalTitle').value = result.originalTitle || '';
+            document.getElementById('editDirector').value = result.director || '';
+            document.getElementById('editYear').value = result.year || '';
+            document.getElementById('editDescription').value = result.description || '';
+            isEditing = true;
+            document.getElementById('editForm').style.display = 'block';
+            window.scrollTo({top: document.getElementById('editForm').offsetTop, behavior: "smooth"});
+        }
+    }
+
+    function openAddForm() {
+        previousScrollPosition = window.scrollY;
+        document.getElementById('formTitle').textContent = 'Добавление новой кассеты';
+        document.getElementById('editId').value = '';
+        document.getElementById('editMedia').value = '';
+        document.getElementById('editMediaType').value = '';
+        document.getElementById('editOriginalTitle').value = '';
+        document.getElementById('editDirector').value = '';
+        document.getElementById('editYear').value = '';
+        document.getElementById('editDescription').value = '';
+        isEditing = false;
+        document.getElementById('editForm').style.display = 'block';
+        window.scrollTo({top: document.getElementById('editForm').offsetTop, behavior: "smooth"});
+    }
+
+    function closeForm() {
+        document.getElementById('editForm').style.display = 'none';
+        window.scrollTo({top: previousScrollPosition, behavior: "smooth"});
+    }
+
+    async function saveEntry() {
+        const id = document.getElementById('editId').value;
+        const entry = {
+            media: document.getElementById('editMedia').value,
+            mediaType: document.getElementById('editMediaType').value,
+            originalTitle: document.getElementById('editOriginalTitle').value,
+            director: document.getElementById('editDirector').value,
+            year: document.getElementById('editYear').value,
+            description: document.getElementById('editDescription').value
+        };
+
+        const method = isEditing ? 'PUT' : 'POST';
+        const url = isEditing ? `/api/archive/${id}` : '/api/archive';
+
+        await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(entry)
+        });
+
+        closeForm();
+        performSearch();
+    }
+</script>
+</body>
+</html>
